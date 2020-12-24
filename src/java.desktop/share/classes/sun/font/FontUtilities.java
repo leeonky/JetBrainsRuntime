@@ -25,7 +25,7 @@
 
 package sun.font;
 
-import java.awt.Font;
+import java.awt.*;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -56,6 +56,8 @@ public final class FontUtilities {
     public static boolean isWindows;
 
     public static boolean isOpenJDK;
+
+    public static Point augmentedGlyphSubpixelResolution;
 
     static final String LUCIDA_FILE_NAME = "LucidaSansRegular.ttf";
 
@@ -126,6 +128,20 @@ public final class FontUtilities {
                 if (debugFonts) {
                     logger = PlatformLogger.getLogger("sun.java2d");
                     logging = logger.isEnabled();
+                }
+
+                try {
+                    String property = System.getProperty("java2d.font.subpixelResolution", "");
+                    int separatorIndex = property.indexOf('x');
+                    final int MAX_RESOLUTION = 16;
+                    augmentedGlyphSubpixelResolution = new Point(
+                            Math.max(Math.min(Integer.parseUnsignedInt(
+                                    property.substring(0, separatorIndex)), MAX_RESOLUTION), 1),
+                            Math.max(Math.min(Integer.parseUnsignedInt(
+                                    property.substring(separatorIndex + 1)), MAX_RESOLUTION), 1)
+                    );
+                } catch (Exception ignore) {
+                    augmentedGlyphSubpixelResolution = new Point(1, 1);
                 }
 
                 return null;
