@@ -27,6 +27,7 @@ package sun.lwawt.macosx;
 
 import sun.awt.SunToolkit;
 import sun.awt.event.KeyEventProcessing;
+import sun.font.FontUtilities;
 import sun.lwawt.LWWindowPeer;
 import sun.lwawt.PlatformEventNotifier;
 import sun.util.logging.PlatformLogger;
@@ -287,17 +288,22 @@ final class CPlatformResponder {
         boolean charactersIgnoringModifiersIsValid  = (nsEvent.getCharactersIgnoringModifiers() != null && nsEvent.getCharactersIgnoringModifiers().length() > 0);
         boolean charactersIsValid  = (nsEvent.getCharacters() != null && nsEvent.getCharacters().length() > 0);
 
-        // We use this char to find a character that is printed depending on pressing modifiers
-        characterToGetKeyCode = charactersIgnoringModifiersIsValid
-            ? nsEvent.getCharactersIgnoringModifiers().charAt(0)
-            : charactersIsValid ? nsEvent.getCharacters().charAt(0) : KeyEvent.CHAR_UNDEFINED;
+        if (FontUtilities.isMacOSX_aarch64) {
+            characterToGetKeyCode = nsEvent.getCharactersIgnoringModifiers() != null && nsEvent.getCharactersIgnoringModifiers().length() > 0 ?
+                                    nsEvent.getCharactersIgnoringModifiers().charAt(0) : KeyEvent.CHAR_UNDEFINED;
+        } else {
+            // We use this char to find a character that is printed depending on pressing modifiers
+            characterToGetKeyCode = charactersIgnoringModifiersIsValid
+                ? nsEvent.getCharactersIgnoringModifiers().charAt(0)
+                : charactersIsValid ? nsEvent.getCharacters().charAt(0) : KeyEvent.CHAR_UNDEFINED;
 
-        if (useShiftedCharacters && nsEvent.getCharactersIgnoringModifiers() != null && !nsEvent.getCharactersIgnoringModifiers().isEmpty()) {
-            characterToGetKeyCode = nsEvent.getCharactersIgnoringModifiers().charAt(0);
-        } else  if (nsEvent.getCharactersIgnoringModifiersAndShift() != null && !nsEvent.getCharactersIgnoringModifiersAndShift().isEmpty()) {
-            characterToGetKeyCode = nsEvent.getCharactersIgnoringModifiersAndShift().charAt(0);
-        } else if (nsEvent.getCharacters() != null && !nsEvent.getCharacters().isEmpty() && metaAltCtrlAreNotPressed && shiftIsPressed) {
-            characterToGetKeyCode = checkedChar;
+            if (useShiftedCharacters && nsEvent.getCharactersIgnoringModifiers() != null && !nsEvent.getCharactersIgnoringModifiers().isEmpty()) {
+                characterToGetKeyCode = nsEvent.getCharactersIgnoringModifiers().charAt(0);
+            } else  if (nsEvent.getCharactersIgnoringModifiersAndShift() != null && !nsEvent.getCharactersIgnoringModifiersAndShift().isEmpty()) {
+                characterToGetKeyCode = nsEvent.getCharactersIgnoringModifiersAndShift().charAt(0);
+            } else if (nsEvent.getCharacters() != null && !nsEvent.getCharacters().isEmpty() && metaAltCtrlAreNotPressed && shiftIsPressed) {
+                characterToGetKeyCode = checkedChar;
+            }
         }
 
         // We use char candidate if modifiers are not used
