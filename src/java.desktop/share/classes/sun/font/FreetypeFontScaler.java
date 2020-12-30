@@ -75,8 +75,8 @@ class FreetypeFontScaler extends FontScaler {
 
         initIDs(FreetypeFontScaler.class, Toolkit.class, PhysicalFont.class,
                 fontConfName,
-                FontUtilities.augmentedGlyphSubpixelResolution.x,
-                FontUtilities.augmentedGlyphSubpixelResolution.y);
+                FontUtilities.supplementarySubpixelGlyphResolution.width,
+                FontUtilities.supplementarySubpixelGlyphResolution.height);
     }
 
     private static native void initIDs(Class<?> FFS, Class<?> toolkitClass, Class<?> pfClass,

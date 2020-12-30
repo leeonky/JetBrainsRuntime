@@ -198,7 +198,7 @@ static FcInitLoadConfigAndFontsPtrType FcInitLoadConfigAndFontsPtr;
 static FcGetVersionPtrType FcGetVersionPtr;
 #endif
 
-static FT_UnitVector subpixelAugmentedGlyphResolution;
+static FT_UnitVector supplementarySubpixelGlyphResolution;
 
 static void* openFontConfig() {
     void* libfontconfig = NULL;
@@ -242,8 +242,8 @@ Java_sun_font_FreetypeFontScaler_initIDs(
         logFFS = JNI_TRUE;
     }
 
-    subpixelAugmentedGlyphResolution.x = subpixelResolutionX;
-    subpixelAugmentedGlyphResolution.y = subpixelResolutionY;
+    supplementarySubpixelGlyphResolution.x = subpixelResolutionX;
+    supplementarySubpixelGlyphResolution.y = subpixelResolutionY;
 
     invalidateScalerMID =
         (*env)->GetMethodID(env, FFSClass, "invalidateScaler", "()V");
@@ -1528,18 +1528,22 @@ static void transformBGRABitmapGlyph(FT_GlyphSlot ftglyph, GlyphInfo* glyphInfo,
     freeSampledBGRABitmap(&sampledBitmap);
 }
 
-/* In order to get augmented set of grayscale glyph images, we pick single
+/* Size of stack-allocated temporary buffer for glyph downscaling.
+ * If glyph is too big and requires more bytes, it will use malloc. */
+#define SUBPIXEL_DOWNSCALE_STATIC_BUFFER_SIZE 4096
+
+/* In order to get an extended set of grayscale glyph images, we pick single
  * upscaled image and downscale it with different offsets by x and y axis */
-static void CopySubpixelAugmentedToGrey8(const UInt8* srcImage, int srcRowBytes,
-                                         int srcWidth, int srcHeight,
-                                         UInt8* dstImage, int dstRowBytes,
-                                         int dstWidth, int dstHeight,
-                                         int xOffset, int yOffset,
-                                         int xResolution, int yResolution,
-                                         int imageSize) {
-    short staticBuffer[4096];
+static void CopySupplementarySubpixelToGrey8(const UInt8* srcImage, int srcRowBytes,
+                                             int srcWidth, int srcHeight,
+                                             UInt8* dstImage, int dstRowBytes,
+                                             int dstWidth, int dstHeight,
+                                             int xOffset, int yOffset,
+                                             int xResolution, int yResolution,
+                                             int imageSize) {
+    short staticBuffer[SUBPIXEL_DOWNSCALE_STATIC_BUFFER_SIZE];
     int bufferSize = sizeof(short) * dstWidth * srcHeight;
-    int useStaticBuffer = bufferSize <= 4096;
+    int useStaticBuffer = bufferSize <= SUBPIXEL_DOWNSCALE_STATIC_BUFFER_SIZE;
     short *buffer = useStaticBuffer ? staticBuffer : malloc(bufferSize);
 
     int xGlyph, yGlyph, x, y;
@@ -1712,20 +1716,21 @@ static jlong
 
     /* generate bitmap if it is not done yet
      e.g. if algorithmic styling is performed and style was added to outline */
-    int subpixelAugmentedGlyph = FALSE;
+    int subpixelGlyph = FALSE;
     int subpixelResolutionX = 1;
     int subpixelResolutionY = 1;
     if (renderImage && outlineGlyph) {
-        /* We can create augmented glyph when rendering with grayscale AA thus
+        /* We can create an extended glyph when rendering with grayscale AA thus
          * increasing subpixel resolution & reducing glyph spacing issues.
          * We do this by rendering the glyph in bigger resolution and then
          * downscaling it with different subpixel offsets, which results in
          * subpixelResolutionX * subpixelResolutionY images per glyph. */
-        if (ftglyph->bitmap.pixel_mode ==  FT_PIXEL_MODE_GRAY) {
-            subpixelResolutionX = subpixelAugmentedGlyphResolution.x;
-            subpixelResolutionY = subpixelAugmentedGlyphResolution.y;
+        if (ftglyph->bitmap.pixel_mode ==  FT_PIXEL_MODE_GRAY &&
+            context->aaType == TEXT_AA_ON && context->fmType == TEXT_FM_ON) {
+            subpixelResolutionX = supplementarySubpixelGlyphResolution.x;
+            subpixelResolutionY = supplementarySubpixelGlyphResolution.y;
             if (subpixelResolutionX > 1 || subpixelResolutionY > 1) {
-                subpixelAugmentedGlyph = TRUE;
+                subpixelGlyph = TRUE;
                 FT_Matrix matrix;
                 matrix.xx = (long) FT_MATRIX_ONE * subpixelResolutionX;
                 matrix.xy = 0;
@@ -1754,7 +1759,7 @@ static jlong
     FT_BBox manualTransformBoundingBox;
     int topLeftX, topLeftY;
     if (renderImage) {
-        if (subpixelAugmentedGlyph) {
+        if (subpixelGlyph) {
             topLeftX = FLOOR_DIV(ftglyph->bitmap_left, subpixelResolutionX);
             topLeftY = FLOOR_DIV(-ftglyph->bitmap_top, subpixelResolutionY);
             width = -FLOOR_DIV(
@@ -1864,22 +1869,22 @@ static jlong
         //output format is either 3 bytes per pixel (for subpixel modes)
         //4 bytes per pixel for BGRA glyphs
         // or 1 byte per pixel for AA and B&W
-        if (subpixelAugmentedGlyph) {
+        if (subpixelGlyph) {
             int offsetX = ftglyph->bitmap_left - topLeftX * subpixelResolutionX;
             int offsetY = -ftglyph->bitmap_top - topLeftY * subpixelResolutionY;
-            CopySubpixelAugmentedToGrey8(ftglyph->bitmap.buffer,
-                                         ftglyph->bitmap.pitch,
-                                         ftglyph->bitmap.width,
-                                         ftglyph->bitmap.rows,
-                                         glyphInfo->image,
-                                         rowBytes,
-                                         width,
-                                         height,
-                                         offsetX,
-                                         offsetY,
-                                         subpixelResolutionX,
-                                         subpixelResolutionY,
-                                         imageSize);
+            CopySupplementarySubpixelToGrey8(ftglyph->bitmap.buffer,
+                                             ftglyph->bitmap.pitch,
+                                             ftglyph->bitmap.width,
+                                             ftglyph->bitmap.rows,
+                                             glyphInfo->image,
+                                             rowBytes,
+                                             width,
+                                             height,
+                                             offsetX,
+                                             offsetY,
+                                             subpixelResolutionX,
+                                             subpixelResolutionY,
+                                             imageSize);
         }
         else if (context->fixedSizeIndex == -1) {
             // Standard format conversion without image transformation

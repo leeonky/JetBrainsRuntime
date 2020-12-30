@@ -57,7 +57,7 @@ public final class FontUtilities {
 
     public static boolean isOpenJDK;
 
-    public static Point augmentedGlyphSubpixelResolution;
+    public static Dimension supplementarySubpixelGlyphResolution;
 
     static final String LUCIDA_FILE_NAME = "LucidaSansRegular.ttf";
 
@@ -134,14 +134,14 @@ public final class FontUtilities {
                     String property = System.getProperty("java2d.font.subpixelResolution", "");
                     int separatorIndex = property.indexOf('x');
                     final int MAX_RESOLUTION = 16;
-                    augmentedGlyphSubpixelResolution = new Point(
+                    supplementarySubpixelGlyphResolution = new Dimension(
                             Math.max(Math.min(Integer.parseUnsignedInt(
                                     property.substring(0, separatorIndex)), MAX_RESOLUTION), 1),
                             Math.max(Math.min(Integer.parseUnsignedInt(
                                     property.substring(separatorIndex + 1)), MAX_RESOLUTION), 1)
                     );
                 } catch (Exception ignore) {
-                    augmentedGlyphSubpixelResolution = new Point(1, 1);
+                    supplementarySubpixelGlyphResolution = new Dimension(1, 1);
                 }
 
                 return null;
