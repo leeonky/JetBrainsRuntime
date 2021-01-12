@@ -1528,9 +1528,9 @@ static void transformBGRABitmapGlyph(FT_GlyphSlot ftglyph, GlyphInfo* glyphInfo,
     freeSampledBGRABitmap(&sampledBitmap);
 }
 
-/* Size of stack-allocated temporary buffer for glyph downscaling.
- * If glyph is too big and requires more bytes, it will use malloc. */
-#define SUBPIXEL_DOWNSCALE_STATIC_BUFFER_SIZE 4096
+/* Size (in pixels) of stack-allocated temporary buffer for glyph downscaling.
+ * If glyph is too big and requires more memory, it will use malloc. */
+#define SUBPIXEL_DOWNSCALE_STATIC_BUFFER_SIZE 2048
 
 /* In order to get an extended set of grayscale glyph images, we pick single
  * upscaled image and downscale it with different offsets by x and y axis */
@@ -1542,9 +1542,10 @@ static void CopySupplementarySubpixelToGrey8(const UInt8* srcImage, int srcRowBy
                                              int xResolution, int yResolution,
                                              int imageSize) {
     short staticBuffer[SUBPIXEL_DOWNSCALE_STATIC_BUFFER_SIZE];
-    int bufferSize = sizeof(short) * dstWidth * srcHeight;
+    int bufferSize = dstWidth * srcHeight;
     int useStaticBuffer = bufferSize <= SUBPIXEL_DOWNSCALE_STATIC_BUFFER_SIZE;
-    short *buffer = useStaticBuffer ? staticBuffer : malloc(bufferSize);
+    short *buffer = useStaticBuffer ?
+            staticBuffer : malloc(sizeof(short) * bufferSize);
 
     int xGlyph, yGlyph, x, y;
     // For each subpixel offset by x axis
