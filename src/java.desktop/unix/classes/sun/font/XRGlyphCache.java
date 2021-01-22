@@ -273,7 +273,7 @@ public class XRGlyphCache implements GlyphDisposedListener {
             tmp.setValue(glyphId);
             XRGlyphCacheEntry entry = cacheMap.get(tmp);
             int subglyphs = entry.getSubpixelResolutionX() * entry.getSubpixelResolutionY();
-            glyphIDAllocator.freeId(glyphId, subglyphs);
+            glyphIDAllocator.freeID(glyphId, subglyphs);
             cachedPixels -= entry.getPixelCnt();
             cacheMap.remove(tmp);
 
@@ -328,10 +328,12 @@ public class XRGlyphCache implements GlyphDisposedListener {
                     return pool.remove(pool.size() - 1);
                 }
             }
-            return nextID += count;
+            int id = nextID;
+            nextID += count;
+            return id;
         }
 
-        private void freeId(int id, int count) {
+        private void freeID(int id, int count) {
             if (count > freeIDsByCapacity.length) {
                 freeIDsByCapacity = Arrays.copyOf(freeIDsByCapacity, count);
             }
